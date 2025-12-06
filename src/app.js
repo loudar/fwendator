@@ -3,10 +3,15 @@
 
 (function () {
   const fileInput = document.getElementById('fileInput');
+  const avatarToggle = document.getElementById('avatarToggle');
   const searchInput = document.getElementById('searchInput');
   const clearSearchBtn = document.getElementById('clearSearchBtn');
   const statsEl = document.getElementById('stats');
   const container = document.getElementById('network');
+  const sidebar = document.getElementById('sidebar');
+  const sidebarTitle = document.getElementById('sidebarTitle');
+  const sidebarContent = document.getElementById('sidebarContent');
+  const sidebarClose = document.getElementById('sidebarClose');
   const overlay = document.getElementById('loadingOverlay');
   const loaderMsgEl = document.getElementById('loaderMessage');
   const loaderBarEl = document.getElementById('loaderBar');
@@ -23,10 +28,53 @@
   let idByLowerName = new Map();
   /** Base colors per node id so we can restore after highlights */
   const baseColorById = new Map();
+  /** Loaded sources: { name: fileName, data: object } */
+  let sources = [];
+  /** Merged source data built from all sources */
+  let mergedData = null;
+  /** Currently selected node id */
+  let selectedId = null;
+  /** Avatar mode flag */
+  let useAvatars = false;
+  /** Cache of generated avatar data URLs by node id */
+  const avatarUrlById = new Map();
+
+  // Control which edges are shown for clarity during highlighting/selection.
+  // If visibleNodeIds is null, show all edges. Otherwise, only show edges whose
+  // both endpoints are within the visibleNodeIds set.
+  function updateEdgesVisibility(visibleNodeIds) {
+    if (!edgesDS) return;
+    const allEdges = edgesDS.get();
+    // Fast path: show all
+    if (!visibleNodeIds) {
+      const updates = [];
+      for (const e of allEdges) {
+        if (e.hidden) updates.push({ id: e.id, hidden: false });
+      }
+      if (updates.length) edgesDS.update(updates);
+      return;
+    }
+    const updates = [];
+    for (const e of allEdges) {
+      const fromVisible = visibleNodeIds.has(String(e.from));
+      const toVisible = visibleNodeIds.has(String(e.to));
+      const shouldShow = fromVisible && toVisible;
+      if (!!e.hidden === shouldShow) {
+        // toggle only when state differs; e.hidden is true means currently hidden
+        updates.push({ id: e.id, hidden: !shouldShow });
+      }
+    }
+    if (updates.length) edgesDS.update(updates);
+  }
 
   function reset() {
     idByLowerName.clear();
     baseColorById.clear();
+    sources = [];
+    mergedData = null;
+    selectedId = null;
+    useAvatars = avatarToggle?.checked || false;
+    avatarUrlById.clear();
     if (stabilizeTimeoutId !== null) {
       clearTimeout(stabilizeTimeoutId);
       stabilizeTimeoutId = null;
@@ -39,6 +87,7 @@
     edgesDS = null;
     network = null;
     searchInput.value = '';
+    hideSidebar();
   }
 
   function setStats(msg) {
@@ -53,6 +102,14 @@
 
   function hideOverlay() {
     overlay.hidden = true;
+  }
+
+  function hideSidebar() {
+    if (sidebar) sidebar.hidden = true;
+  }
+
+  function showSidebar() {
+    if (sidebar) sidebar.hidden = false;
   }
 
   function parseJSONText(text) {
@@ -75,6 +132,65 @@
     return name.replace(/(?:#0)+$/i, '').trim();
   }
 
+  // Extract discriminator (0001..9999) from a name like "foo#1234"
+  function discriminatorFromName(name) {
+    if (typeof name !== 'string') return null;
+    const m = name.match(/#(\d{1,4})$/);
+    return m ? parseInt(m[1], 10) : null;
+  }
+
+  // Build a Discord CDN avatar URL if we have either a full URL or a hash.
+  function resolveAvatarUrl(id, info) {
+    if (!info) return null;
+    const raw = info.avatarUrl || info.avatar || null;
+    if (typeof raw === 'string' && raw.length > 0) {
+      if (/^https?:\/\//i.test(raw)) return raw; // already a URL
+      // assume it's an avatar hash from Discord
+      return `https://cdn.discordapp.com/avatars/${id}/${raw}.png?size=128`;
+    }
+    // Fallback to default embed avatar using discriminator (0..4)
+    const disc = discriminatorFromName(info.name || '')
+      ?? (typeof id === 'string' ? (parseInt(id.slice(-2), 10) || 0) : 0);
+    const idx = Math.abs(disc) % 5;
+    return `https://cdn.discordapp.com/embed/avatars/${idx}.png?size=128`;
+  }
+
+  // Merge multiple source objects into a combined object: { id: { name, mutual: string[] } }
+  function mergeSources(objs) {
+    const out = {};
+    for (const obj of objs) {
+      if (!obj || typeof obj !== 'object') continue;
+      for (const [id, info] of Object.entries(obj)) {
+        if (!out[id]) {
+          const label = info && info.name ? cleanUsername(info.name) : id;
+          // carry an avatarUrl if available (or build discord default)
+          const avatarUrl = resolveAvatarUrl(id, info);
+          out[id] = { name: label, mutual: [], avatarUrl };
+        }
+        // Prefer avatar from the first source that has a non-empty url/hash
+        else if (!out[id].avatarUrl) {
+          const avatarUrl = resolveAvatarUrl(id, info);
+          out[id].avatarUrl = avatarUrl || out[id].avatarUrl;
+        }
+      }
+    }
+    // Union mutuals across sources per id
+    const tmpSet = new Map(); // id -> Set
+    for (const id of Object.keys(out)) tmpSet.set(id, new Set());
+    for (const obj of objs) {
+      for (const [a, info] of Object.entries(obj)) {
+        if (!out[a]) continue;
+        if (!info || !Array.isArray(info.mutual)) continue;
+        const setA = tmpSet.get(a);
+        for (const b of info.mutual) setA && setA.add(String(b));
+      }
+    }
+    for (const [id, set] of tmpSet.entries()) {
+      out[id].mutual = Array.from(set);
+    }
+    return out;
+  }
+
   // Build nodes and edges arrays from input data
   async function buildGraphAsync(dataObj, onProgress) {
     const nodes = [];
@@ -93,6 +209,9 @@
       const { background, border } = colorFromId(id);
       const color = { background, border };
       baseColorById.set(id, color);
+      // store avatar URL (real CDN or default) for avatar mode
+      const avatarUrl = info && info.avatarUrl ? info.avatarUrl : resolveAvatarUrl(id, info);
+      if (avatarUrl) avatarUrlById.set(id, avatarUrl);
       nodes.push({ id, label, title: label, color, value: 0 });
       degree.set(id, 0);
       idByLowerName.set(label.toLowerCase(), id);
@@ -230,6 +349,9 @@
 
     network = new vis.Network(container, data, options);
 
+    // If avatars toggle is on, apply avatar mode now
+    applyAvatarMode(useAvatars);
+
     // Physics progress indicator
     let lastPct = 0;
     network.on('stabilizationProgress', function (params) {
@@ -266,18 +388,109 @@
       setStats(`Nodes: ${nodes.length.toLocaleString()} | Edges: ${edges.length.toLocaleString()}`);
       stabilizeTimeoutId = null;
     }, approxMs);
+
+    // Click selection handler
+    network.on('click', (params) => {
+      if (params.nodes && params.nodes.length === 1) {
+        const id = String(params.nodes[0]);
+        setSelected(id, { focus: true, openSidebar: true });
+      } else {
+        clearSelection();
+      }
+    });
   }
 
-  async function loadFromFile(file) {
+  function initialsFromLabel(label) {
+    const s = String(label || '').trim();
+    if (!s) return '?';
+    // Split by non-alphanumeric or camelcase boundaries
+    const parts = s
+      .replace(/[_\-]+/g, ' ')
+      .replace(/([a-z])([A-Z])/g, '$1 $2')
+      .split(/\s+/)
+      .filter(Boolean);
+    let letters = '';
+    for (let i = 0; i < parts.length && letters.length < 2; i++) {
+      letters += parts[i][0] || '';
+    }
+    if (!letters) letters = s[0];
+    return letters.slice(0, 2).toUpperCase();
+  }
+
+  function makeAvatarDataUrl(id, label) {
+    const base = baseColorById.get(id) || { background: '#4e79a7', border: '#2e4a67' };
+    const bg = base.background;
+    const text = initialsFromLabel(label);
+    const size = 128;
+    const svg = `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+  <defs><clipPath id="c"><circle cx="64" cy="64" r="64"/></clipPath></defs>
+  <g clip-path="url(#c)">
+    <rect width="${size}" height="${size}" fill="${bg}"/>
+  </g>
+  <text x="50%" y="54%" text-anchor="middle" dominant-baseline="middle" font-family="Inter,Segoe UI,system-ui,Arial" font-weight="700" font-size="56" fill="#ffffff">${text}</text>
+</svg>`;
+    return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+  }
+
+  function ensureAvatarUrl(id, label) {
+    // Prefer a real image URL if one was captured; fall back to generated SVG initials
+    const fallback = makeAvatarDataUrl(id, label);
+    const current = avatarUrlById.get(id);
+    if (current) return { image: current, brokenImage: fallback };
+    avatarUrlById.set(id, fallback);
+    return { image: fallback, brokenImage: fallback };
+  }
+
+  function applyAvatarMode(enabled) {
+    if (!nodesDS) return;
+    useAvatars = !!enabled;
+    const all = nodesDS.get();
+    const updates = [];
+    if (useAvatars) {
+      for (const n of all) {
+        const { image, brokenImage } = ensureAvatarUrl(n.id, n.label);
+        const base = baseColorById.get(n.id) || n.color || { border: '#2e4a67' };
+        updates.push({ id: n.id, shape: 'circularImage', image, brokenImage, borderWidth: 2, color: { border: base.border } });
+      }
+    } else {
+      for (const n of all) {
+        const base = baseColorById.get(n.id) || n.color || { background: '#4e79a7', border: '#2e4a67' };
+        updates.push({ id: n.id, shape: 'dot', image: undefined, brokenImage: undefined, color: base, borderWidth: 1 });
+      }
+    }
+    nodesDS.update(updates);
+
+    // Re-apply current selection/search state visuals
+    if (selectedId) {
+      setSelected(selectedId, { focus: false, openSidebar: false });
+    } else if (searchInput.value.trim()) {
+      highlightByUsernamePart(searchInput.value);
+    }
+  }
+
+  async function loadFromFiles(fileList) {
     reset();
     setStats('Loading...');
-    showOverlay('Reading file…', 5);
-    const text = await file.text();
-    showOverlay('Parsing JSON…', 12);
-    const obj = parseJSONText(text);
+    const files = Array.from(fileList || []);
+    if (files.length === 0) return;
+    const objs = [];
+
+    // Read + parse each file sequentially to keep progress clear
+    for (let i = 0; i < files.length; i++) {
+      const f = files[i];
+      showOverlay(`Reading ${f.name}… (${i + 1}/${files.length})`, Math.round((i / files.length) * 12 + 2));
+      const text = await f.text();
+      showOverlay(`Parsing ${f.name}…`, Math.round((i / files.length) * 12 + 8));
+      const obj = parseJSONText(text);
+      objs.push(obj);
+    }
+
+    sources = files.map((f, idx) => ({ name: f.name, data: objs[idx] }));
+    mergedData = mergeSources(objs);
 
     showOverlay('Building nodes…', 15);
-    const { nodes, edges } = await buildGraphAsync(obj, ({ phase, done, total }) => {
+    const { nodes, edges } = await buildGraphAsync(mergedData, ({ phase, done, total }) => {
       const base = phase === 'nodes' ? 15 : 55; // start percentages for phases
       const span = phase === 'nodes' ? 40 : 40; // each phase span
       const pct = total > 0 ? base + Math.min(1, done / total) * span : base;
@@ -287,10 +500,10 @@
       showOverlay(msg, Math.round(pct));
     });
 
-    // Initialize network; stabilization progress will take over the overlay
     initNetwork(nodes, edges);
     searchInput.disabled = false;
     clearSearchBtn.disabled = false;
+    setStats(`Sources: ${sources.length} | Nodes: ${nodes.length.toLocaleString()} | Edges: ${edges.length.toLocaleString()}`);
   }
 
   function highlightByUsernamePart(query) {
@@ -305,11 +518,18 @@
     const updates = [];
     for (const n of allNodes) {
       const base = baseColorById.get(n.id) || n.color || { background: '#4e79a7', border: '#2e4a67' };
-      updates.push({ id: n.id, color: base, opacity: 1 });
+      if (useAvatars) {
+        updates.push({ id: n.id, color: { border: base.border }, opacity: 1 });
+      } else {
+        updates.push({ id: n.id, color: base, opacity: 1 });
+      }
     }
     nodesDS.update(updates);
 
-    if (!q) return;
+    if (!q) {
+      clearSelection(false);
+      return;
+    }
 
     // Find nodes whose label includes query
     const matchedIds = new Set();
@@ -320,6 +540,13 @@
     }
 
     if (matchedIds.size === 0) return;
+
+    // If exactly one match, behave like clicking it
+    if (matchedIds.size === 1) {
+      const only = matchedIds.values().next().value;
+      setSelected(only, { focus: true, openSidebar: true });
+      return;
+    }
 
     // Get neighbors of all matched
     const neighborIds = new Set();
@@ -333,30 +560,152 @@
     for (const n of allNodes) {
       if (!matchedIds.has(n.id) && !neighborIds.has(n.id)) {
         const base = baseColorById.get(n.id) || n.color || { border: '#2e4a67' };
-        dimUpdates.push({ id: n.id, color: { background: dimColor, border: base.border }, opacity: 0.4 });
+        if (useAvatars) {
+          dimUpdates.push({ id: n.id, color: { border: base.border }, opacity: 0.35 });
+        } else {
+          dimUpdates.push({ id: n.id, color: { background: dimColor, border: base.border }, opacity: 0.4 });
+        }
       }
     }
     nodesDS.update(dimUpdates);
 
     const hiUpdates = [];
     for (const id of matchedIds) {
-      hiUpdates.push({ id, color: highlightNodeColor, opacity: 1 });
+      if (useAvatars) {
+        const base = baseColorById.get(id) || { border: '#845a2c' };
+        hiUpdates.push({ id, color: { border: '#f6c177' }, opacity: 1, borderWidth: 3 });
+      } else {
+        hiUpdates.push({ id, color: highlightNodeColor, opacity: 1 });
+      }
     }
     for (const id of neighborIds) {
-      if (!matchedIds.has(id)) hiUpdates.push({ id, color: { background: '#9cb9d9', border: '#2e4a67' }, opacity: 0.9 });
+      if (!matchedIds.has(id)) {
+        if (useAvatars) {
+          const base = baseColorById.get(id) || { border: '#2e4a67' };
+          hiUpdates.push({ id, color: { border: base.border }, opacity: 0.9, borderWidth: 2 });
+        } else {
+          hiUpdates.push({ id, color: { background: '#9cb9d9', border: '#2e4a67' }, opacity: 0.9 });
+        }
+      }
     }
     nodesDS.update(hiUpdates);
+
+    // Edge visibility: show only edges within matched ∪ neighbors
+    const visibleSet = new Set([...matchedIds, ...neighborIds].map(String));
+    updateEdgesVisibility(visibleSet);
 
     // Focus to the first match
     const first = matchedIds.values().next().value;
     if (first) network.focus(first, { scale: 1, animation: { duration: 500, easingFunction: 'easeInOutQuad' } });
   }
 
+  function setSelected(id, opts = {}) {
+    if (!network || !nodesDS) return;
+    selectedId = id;
+    const allNodes = nodesDS.get();
+    const dimColor = '#394b5a';
+    const highlightNodeColor = { background: '#f6c177', border: '#845a2c' };
+    const neighbors = new Set(network.getConnectedNodes(id).map(String));
+
+    const updates = [];
+    for (const n of allNodes) {
+      const base = baseColorById.get(n.id) || n.color || { background: '#4e79a7', border: '#2e4a67' };
+      if (n.id === id) {
+        if (useAvatars) {
+          updates.push({ id: n.id, color: { border: '#f6c177' }, opacity: 1, borderWidth: 3 });
+        } else {
+          updates.push({ id: n.id, color: highlightNodeColor, opacity: 1 });
+        }
+      } else if (neighbors.has(n.id)) {
+        if (useAvatars) {
+          updates.push({ id: n.id, color: { border: base.border }, opacity: 0.9, borderWidth: 2 });
+        } else {
+          updates.push({ id: n.id, color: { background: '#9cb9d9', border: base.border }, opacity: 0.9 });
+        }
+      } else {
+        if (useAvatars) {
+          updates.push({ id: n.id, color: { border: base.border }, opacity: 0.35 });
+        } else {
+          updates.push({ id: n.id, color: { background: dimColor, border: base.border }, opacity: 0.35 });
+        }
+      }
+    }
+    nodesDS.update(updates);
+
+    // Show only edges among selected + its neighbors
+    const visibleSet = new Set([id, ...neighbors].map(String));
+    updateEdgesVisibility(visibleSet);
+
+    if (opts.focus) {
+      network.focus(id, { scale: 1, animation: { duration: 500, easingFunction: 'easeInOutQuad' } });
+    }
+
+    if (opts.openSidebar) {
+      renderSidebar(id, neighbors);
+    }
+  }
+
+  function clearSelection(resetSearch = true) {
+    if (!nodesDS) return;
+    selectedId = null;
+    const allNodes = nodesDS.get();
+    const updates = [];
+    for (const n of allNodes) {
+      const base = baseColorById.get(n.id) || n.color || { background: '#4e79a7', border: '#2e4a67' };
+      if (useAvatars) {
+        updates.push({ id: n.id, color: { border: base.border }, opacity: 1, borderWidth: 2 });
+      } else {
+        updates.push({ id: n.id, color: base, opacity: 1 });
+      }
+    }
+    nodesDS.update(updates);
+    // Restore all edges
+    updateEdgesVisibility(null);
+    hideSidebar();
+    if (resetSearch) {
+      searchInput.value = '';
+    }
+  }
+
+  function renderSidebar(id, neighborIdsSet) {
+    if (!mergedData) return;
+    const label = nodesDS.get(id)?.label || id;
+    sidebarTitle.textContent = label;
+
+    // Group mutuals by source
+    const blocks = [];
+    for (const src of sources) {
+      const info = src.data[id];
+      let mutuals = [];
+      if (info && Array.isArray(info.mutual)) {
+        mutuals = info.mutual.filter(m => mergedData[m]);
+      }
+      const count = mutuals.length;
+      const items = mutuals.slice(0, 200).map(mid => {
+        const nm = mergedData[mid]?.name || mid;
+        return `<li>${nm}</li>`;
+      }).join('');
+      blocks.push(`
+        <div class="source-block">
+          <div class="source-title">${src.name} — ${count} mutual${count===1?'':'s'}</div>
+          ${count ? `<ul class="mutuals-list">${items}</ul>` : '<div class="source-empty">No data for this user in this source.</div>'}
+        </div>
+      `);
+    }
+
+    sidebarContent.innerHTML = blocks.join('');
+    showSidebar();
+  }
+
   // Events
   fileInput.addEventListener('change', (e) => {
-    const file = e.target.files && e.target.files[0];
-    if (!file) return;
-    loadFromFile(file);
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    loadFromFiles(files);
+  });
+
+  avatarToggle.addEventListener('change', (e) => {
+    applyAvatarMode(e.target.checked);
   });
 
   searchInput.addEventListener('input', (e) => {
@@ -368,6 +717,10 @@
 
   clearSearchBtn.addEventListener('click', () => {
     searchInput.value = '';
-    highlightByUsernamePart('');
+    clearSelection();
+  });
+
+  sidebarClose.addEventListener('click', () => {
+    clearSelection();
   });
 })();

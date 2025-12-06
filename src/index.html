@@ -11,8 +11,12 @@
     <header class="toolbar">
       <div class="controls">
         <label class="file-upload">
-          <input id="fileInput" type="file" accept="application/json" />
-          <span class="btn">Upload JSON</span>
+          <input id="fileInput" type="file" accept="application/json" multiple />
+          <span class="btn">Upload JSON(s)</span>
+        </label>
+        <label class="toggle">
+          <input id="avatarToggle" type="checkbox" />
+          <span>Show avatars</span>
         </label>
         <input id="searchInput" type="text" placeholder="Search username (e.g. alice)" disabled>
         <button id="clearSearchBtn" class="btn" disabled>Clear</button>
@@ -22,6 +26,15 @@
 
     <main>
       <div id="network"></div>
+      <aside id="sidebar" hidden>
+        <div class="sidebar-header">
+          <div id="sidebarTitle" class="sidebar-title">No selection</div>
+          <button id="sidebarClose" class="btn btn-small" title="Clear selection">✕</button>
+        </div>
+        <div id="sidebarContent" class="sidebar-content">
+          <p>Select a node to see details grouped by source.</p>
+        </div>
+      </aside>
       <!-- Loading / progress overlay -->
       <div id="loadingOverlay" hidden>
         <div class="loader-card">
@@ -33,14 +46,6 @@
         </div>
       </div>
     </main>
-
-    <footer class="help">
-      <p>
-        Load a JSON produced by getFriends.js: an object keyed by user id → { name, mutual }. The renderer will
-        draw nodes for each user and undirected edges for mutual connections. Use the search box to highlight a user
-        and their neighbors.
-      </p>
-    </footer>
 
     <script src="https://unpkg.com/vis-network@9.1.2/standalone/umd/vis-network.min.js"></script>
     <script src="app.js"></script>
