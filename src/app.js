@@ -49,9 +49,13 @@
         if (!visibleNodeIds) {
             const updates = [];
             for (const e of allEdges) {
-                if (e.hidden) updates.push({id: e.id, hidden: false});
+                if (e.hidden) {
+                    updates.push({id: e.id, hidden: false});
+                }
             }
-            if (updates.length) edgesDS.update(updates);
+            if (updates.length) {
+                edgesDS.update(updates);
+            }
             return;
         }
         const updates = [];
@@ -96,7 +100,9 @@
 
     function showOverlay(message, pct) {
         if (message) loaderMsgEl.textContent = message;
-        if (typeof pct === 'number') loaderBarEl.style.width = Math.max(0, Math.min(100, pct)) + '%';
+        if (typeof pct === 'number') {
+            loaderBarEl.style.width = Math.max(0, Math.min(100, pct)) + '%';
+        }
         overlay.hidden = false;
     }
 
@@ -128,23 +134,31 @@
     // Remove trailing "#0" sequences from usernames (e.g., "alice#0" -> "alice",
     // "bob#0#0" -> "bob"). Keeps the rest untouched.
     function cleanUsername(name) {
-        if (typeof name !== 'string') return String(name ?? '');
+        if (typeof name !== 'string') {
+            return String(name ?? '');
+        }
         return name.replace(/(?:#0)+$/i, '').trim();
     }
 
     // Extract discriminator (0001..9999) from a name like "foo#1234"
     function discriminatorFromName(name) {
-        if (typeof name !== 'string') return null;
+        if (typeof name !== 'string') {
+            return null;
+        }
         const m = name.match(/#(\d{1,4})$/);
         return m ? parseInt(m[1], 10) : null;
     }
 
     // Build a Discord CDN avatar URL if we have either a full URL or a hash.
     function resolveAvatarUrl(id, info) {
-        if (!info) return null;
+        if (!info) {
+            return null;
+        }
         const raw = info.avatarUrl || info.avatar || null;
         if (typeof raw === 'string' && raw.length > 0) {
-            if (/^https?:\/\//i.test(raw)) return raw; // already a URL
+            if (/^https?:\/\//i.test(raw)) {
+                return raw;
+            } // already a URL
             // assume it's an avatar hash from Discord
             return `https://cdn.discordapp.com/avatars/${id}/${raw}.png?size=128`;
         }
@@ -182,7 +196,10 @@
         }
         // Union mutuals across sources per id
         const tmpSet = new Map(); // id -> Set
-        for (const id of Object.keys(out)) tmpSet.set(id, new Set());
+        for (const id of Object.keys(out)) {
+            tmpSet.set(id, new Set());
+        }
+
         for (const obj of objs) {
             for (const [a, info] of Object.entries(obj)) {
                 if (!out[a]) continue;
@@ -364,7 +381,7 @@
                 color: {background: '#4e79a7', border: '#2e4a67'}
             },
             edges: {
-                color: {color: '#7f8fa6', highlight: '#f6c177'},
+                color: {color: '#474c54', highlight: '#f6c177'},
                 width: 1,
                 selectionWidth: 1.5,
                 smooth: false

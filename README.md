@@ -43,7 +43,7 @@ __To clarify; Yes, this piece of code will use your discord token; Yes it is con
 
 <img src="https://github.com/Escartem/fwendator/blob/master/images/result.png?raw=true" />
 
-6) now you need to clone this repo (with `git clone https://github.com/Escartem/fwendator` for example) and make sure you have both python and pyvis version 0.3.1 installed (with `pip install pyvis==0.3.1`)
+6) now you need to clone this repo (with `git clone https://github.com/Escartem/fwendator` for example)
 7) open the file src/index.html in your preferred browser
 8) upload your json file and enjoy! you can even upload multiple json files to merge your graph with those of your friends :D
 
