@@ -145,6 +145,15 @@ main {
     font-weight: 600;
 }
 
+/* Avatars inside the sidebar (header title and mutual list) */
+.sidebar-title .avatar {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    vertical-align: middle;
+    margin-right: 8px;
+}
+
 .btn-small {
     padding: 4px 8px;
     border-radius: 6px;
@@ -173,8 +182,18 @@ main {
 }
 
 .mutuals-list li {
-    padding: 2px 0;
+    padding: 4px 0;
     color: #cdd6df;
+}
+
+.mutuals-list li .avatar {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    vertical-align: middle;
+    margin-right: 8px;
+    border: 1px solid #22303c;
+    background: #0f1419;
 }
 
 .help {

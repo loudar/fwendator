@@ -179,6 +179,16 @@
         return m ? parseInt(m[1], 10) : null;
     }
 
+    // Basic HTML escape for safe string injection into innerHTML
+    function escapeHtml(str) {
+        return String(str)
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;')
+            .replaceAll("'", '&#39;');
+    }
+
     // Build a Discord CDN avatar URL if we have either a full URL or a hash.
     function resolveAvatarUrl(id, info) {
         if (!info) {
@@ -890,7 +900,20 @@
     function renderSidebar(id, neighborIdsSet) {
         if (!mergedData) return;
         const label = nodesDS.get(id)?.label || id;
-        sidebarTitle.textContent = label;
+        // Render the selected user's avatar + name in the title
+        while (sidebarTitle.firstChild) sidebarTitle.removeChild(sidebarTitle.firstChild);
+        const {image: selImg, brokenImage: selBroken} = ensureAvatarUrl(id, label);
+        const imgEl = document.createElement('img');
+        imgEl.className = 'avatar';
+        imgEl.width = 24; // ensure attributes in case CSS fails to load
+        imgEl.height = 24;
+        imgEl.alt = '';
+        imgEl.src = selImg;
+        imgEl.onerror = function () { this.onerror = null; this.src = selBroken; };
+        const nameEl = document.createElement('span');
+        nameEl.textContent = label;
+        sidebarTitle.appendChild(imgEl);
+        sidebarTitle.appendChild(nameEl);
 
         // Group mutuals by source
         const blocks = [];
@@ -906,7 +929,9 @@
             const items = mutuals.slice(0, 200).map(mid => {
                 const nm = mergedData[mid]?.name;
                 // Per requirement: do not show IDs in mutuals when a name exists; otherwise fall back to ID
-                return `<li>${nm && nm !== mid ? nm : mid}</li>`;
+                const display = nm && nm !== mid ? nm : mid;
+                const {image, brokenImage} = ensureAvatarUrl(mid, display);
+                return `<li><img class="avatar" src="${image}" onerror="this.onerror=null;this.src='${brokenImage}'" alt=""/> <span>${escapeHtml(display)}</span></li>`;
             }).join('');
 
             // Determine a friendly source label: if the source base name looks like an ID and
