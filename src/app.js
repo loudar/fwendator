@@ -4,6 +4,7 @@
 (function () {
     const fileInput = document.getElementById('fileInput');
     const avatarToggle = document.getElementById('avatarToggle');
+    const hideRootLeavesToggle = document.getElementById('hideRootLeaves');
     const searchInput = document.getElementById('searchInput');
     const clearSearchBtn = document.getElementById('clearSearchBtn');
     const statsEl = document.getElementById('stats');
@@ -38,6 +39,10 @@
     let useAvatars = false;
     /** Cache of generated avatar data URLs by node id */
     const avatarUrlById = new Map();
+    /** Roots detected from sources (origin IDs created/ensured per source) */
+    let rootIds = new Set();
+    /** Hide leaves connected only to a root flag */
+    let hideLeaves = false;
 
     // Control which edges are shown for clarity during highlighting/selection.
     // If visibleNodeIds is null, show all edges. Otherwise, only show edges whose
@@ -78,6 +83,7 @@
         mergedData = null;
         selectedId = null;
         useAvatars = avatarToggle?.checked || false;
+        hideLeaves = hideRootLeavesToggle?.checked || false;
         avatarUrlById.clear();
         if (stabilizeTimeoutId !== null) {
             clearTimeout(stabilizeTimeoutId);
@@ -284,6 +290,35 @@
         }
 
         return {nodes, edges};
+    }
+
+    // Filter nodes that have exactly one connection and that sole neighbor is a root node
+    function filterLeavesConnectedToRoots(nodes, edges) {
+        if (!hideLeaves || !rootIds || rootIds.size === 0) return {nodes, edges};
+        const adj = new Map(); // id -> Set(neighbors)
+        for (const n of nodes) adj.set(String(n.id), new Set());
+        for (const e of edges) {
+            const a = String(e.from);
+            const b = String(e.to);
+            if (!adj.has(a)) adj.set(a, new Set());
+            if (!adj.has(b)) adj.set(b, new Set());
+            adj.get(a).add(b);
+            adj.get(b).add(a);
+        }
+        const toRemove = new Set();
+        for (const [id, neigh] of adj.entries()) {
+            if (neigh.size === 1) {
+                const only = neigh.values().next().value;
+                if (rootIds.has(String(only)) && !rootIds.has(String(id))) {
+                    toRemove.add(String(id));
+                }
+            }
+        }
+        if (toRemove.size === 0) return {nodes, edges};
+        const keptNodes = nodes.filter(n => !toRemove.has(String(n.id)));
+        const keptNodeSet = new Set(keptNodes.map(n => String(n.id)));
+        const keptEdges = edges.filter(e => keptNodeSet.has(String(e.from)) && keptNodeSet.has(String(e.to)));
+        return {nodes: keptNodes, edges: keptEdges};
     }
 
     // Deterministic color generation per id
@@ -551,6 +586,7 @@
         // Rule: Only add/ensure an origin's connections if the file name (without .json)
         // matches the ID of a node in that file. Otherwise, do nothing special.
         const isMultiSource = files.length > 1;
+        const detectedRoots = new Set();
         const augmented = allFriendObjs.map((obj, idx) => {
             try {
                 if (!obj || typeof obj !== 'object') {
@@ -570,6 +606,7 @@
                 if (base in obj) {
                     const clone = {...obj};
                     const originId = base;
+                    detectedRoots.add(String(originId));
                     const originInfo = {...clone[originId]};
                     const current = new Set(Array.isArray(originInfo.mutual) ? originInfo.mutual.map(String) : []);
                     for (const id of allIds) {
@@ -586,6 +623,7 @@
                 if (looksLikeId && allIds.length) {
                     const clone = {...obj};
                     const originId = base;
+                    detectedRoots.add(String(originId));
                     const mutual = allIds.filter(id => id !== originId).map(String);
                     clone[originId] = {
                         name: originId,
@@ -604,6 +642,7 @@
 
         sources = files.map((f, idx) => ({name: f.name, data: augmented[idx]}));
         mergedData = mergeSources(augmented);
+        rootIds = detectedRoots; // save detected roots for filtering
 
         showOverlay('Building nodes…', 15);
         const {nodes, edges} = await buildGraphAsync(mergedData, ({phase, done, total}) => {
@@ -616,10 +655,28 @@
             showOverlay(msg, Math.round(pct));
         });
 
-        initNetwork(nodes, edges);
+        const filtered = filterLeavesConnectedToRoots(nodes, edges);
+        initNetwork(filtered.nodes, filtered.edges);
         searchInput.disabled = false;
         clearSearchBtn.disabled = false;
-        setStats(`Sources: ${sources.length} | Nodes: ${nodes.length.toLocaleString()} | Edges: ${edges.length.toLocaleString()}`);
+        setStats(`Sources: ${sources.length} | Nodes: ${filtered.nodes.length.toLocaleString()} | Edges: ${filtered.edges.length.toLocaleString()}`);
+    }
+
+    async function rebuildFromMergedWithFilter() {
+        if (!mergedData) return;
+        showOverlay('Rebuilding…', 10);
+        const {nodes, edges} = await buildGraphAsync(mergedData, ({phase, done, total}) => {
+            const base = phase === 'nodes' ? 10 : 40;
+            const span = 30;
+            const pct = total > 0 ? base + Math.min(1, done / total) * span : base;
+            const msg = phase === 'nodes'
+                ? `Building nodes… ${Math.min(100, Math.round((done / Math.max(1, total)) * 100))}%`
+                : `Linking edges… ${Math.min(100, Math.round((done / Math.max(1, total)) * 100))}%`;
+            showOverlay(msg, Math.round(pct));
+        });
+        const filtered = filterLeavesConnectedToRoots(nodes, edges);
+        initNetwork(filtered.nodes, filtered.edges);
+        setStats(`Sources: ${sources.length} | Nodes: ${filtered.nodes.length.toLocaleString()} | Edges: ${filtered.edges.length.toLocaleString()}`);
     }
 
     function highlightByUsernamePart(query) {
@@ -822,6 +879,12 @@
 
     avatarToggle.addEventListener('change', (e) => {
         applyAvatarMode(e.target.checked);
+    });
+
+    hideRootLeavesToggle.addEventListener('change', async (e) => {
+        hideLeaves = !!e.target.checked;
+        // Rebuild from merged data to apply/remove filtering
+        await rebuildFromMergedWithFilter();
     });
 
     searchInput.addEventListener('input', (e) => {

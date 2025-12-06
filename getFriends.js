@@ -105,11 +105,27 @@ async function buildFriendGraph(friends, token) {
         console.log(`📃 Parsing friends... [${index}/${friends.length}]`);
         await sleep(1000); // be gentle to the API
     }
-    return out;
+
+    let selfId = `friends-${new Date().toISOString().replace(/[:T]/g, '-').slice(0, 19).replaceAll("-", "")}`;
+    try {
+        // Add the origin/self user so the source has a clear hub connected to all friends
+        console.log("👤 Fetching self user…");
+        const me = await f("https://discord.com/api/v9/users/@me", t);
+        if (me && me.id) {
+            selfId = me.id;
+        }
+    } catch (e) {
+        console.warn("⚠️ Could not fetch self user; continuing without explicit origin node.", e);
+    }
+
+    return {
+        data: out,
+        id: selfId
+    };
 }
 
 // Clear page and show result
-function renderResult(data) {
+function renderResult(data, id) {
     document.head.innerHTML = "";
     document.body.innerHTML = "";
     document.body.appendChild(Object.assign(document.createElement("h1"), {
@@ -128,7 +144,7 @@ function renderResult(data) {
             }));
             Object.assign(document.createElement("a"), {
                 href: url,
-                download: `friends-${new Date().toISOString().replace(/[:T]/g, '-').slice(0, 19).replaceAll("-", "")}.json`
+                download: `${id}.json`
             }).click();
             URL.revokeObjectURL(url)
         }
@@ -146,8 +162,8 @@ async function main() {
 
         const token = await getToken();
         const friends = await getFriends(token);
-        const data = await buildFriendGraph(friends, token);
-        renderResult(data);
+        const {data, id} = await buildFriendGraph(friends, token);
+        renderResult(data, id);
         console.log("✨ Done");
     } catch (err) {
         console.error(err);
