@@ -6,6 +6,8 @@
     const avatarToggle = document.getElementById('avatarToggle');
     const hideNamesToggle = document.getElementById('hideNamesToggle');
     const hideRootLeavesToggle = document.getElementById('hideRootLeaves');
+    // The label wrapper of the root-leaf toggle, used to show/hide the control
+    const hideRootLeavesLabel = hideRootLeavesToggle ? hideRootLeavesToggle.closest('label') : null;
     const searchInput = document.getElementById('searchInput');
     const clearSearchBtn = document.getElementById('clearSearchBtn');
     const statsEl = document.getElementById('stats');
@@ -47,6 +49,22 @@
     /** Hide leaves connected only to a root flag */
     let hideLeaves = false;
 
+    // Show or hide the "Hide nodes with only one connection to a root" control based on context
+    function setRootLeafControlVisibility(show) {
+        if (!hideRootLeavesLabel || !hideRootLeavesToggle) return;
+        if (show) {
+            hideRootLeavesLabel.hidden = false;
+        } else {
+            // When hiding the control, also clear its state and disable filtering
+            hideRootLeavesLabel.hidden = true;
+            if (hideRootLeavesToggle.checked) hideRootLeavesToggle.checked = false;
+            hideLeaves = false;
+        }
+    }
+
+    // Initial state before any data is loaded: hidden (since there's no source yet)
+    setRootLeafControlVisibility(false);
+
     // Control which edges are shown for clarity during highlighting/selection.
     // If visibleNodeIds is null, show all edges. Otherwise, only show edges whose
     // both endpoints are within the visibleNodeIds set.
@@ -87,6 +105,8 @@
         selectedId = null;
         useAvatars = avatarToggle?.checked || false;
         hideNames = hideNamesToggle?.checked || false;
+        // By default (no sources yet), the root-leaf filter control should be hidden
+        setRootLeafControlVisibility(false);
         hideLeaves = hideRootLeavesToggle?.checked || false;
         avatarUrlById.clear();
         if (stabilizeTimeoutId !== null) {
@@ -601,6 +621,8 @@
         // Rule: Only add/ensure an origin's connections if the file name (without .json)
         // matches the ID of a node in that file. Otherwise, do nothing special.
         const isMultiSource = files.length > 1;
+        // Only show the root-leaf filter when there are multiple sources
+        setRootLeafControlVisibility(isMultiSource);
         const detectedRoots = new Set();
         const augmented = allFriendObjs.map((obj, idx) => {
             try {

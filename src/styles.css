@@ -81,6 +81,7 @@ button:disabled, .button:disabled {
 input[type="text"] {
     background: #11161b;
     color: var(--text);
+    font-size: 1rem;
     border: 1px solid #22303c;
     padding: 8px 10px;
     border-radius: 6px;
