@@ -507,7 +507,7 @@
         network.on('click', (params) => {
             if (params.nodes && params.nodes.length === 1) {
                 const id = String(params.nodes[0]);
-                setSelected(id, {focus: true, openSidebar: true});
+                focusPerson(id, {focus: true, openSidebar: true});
             } else {
                 clearSelection();
             }
@@ -774,7 +774,7 @@
         // If exactly one match, behave like clicking it
         if (matchedIds.size === 1) {
             const only = matchedIds.values().next().value;
-            setSelected(only, {focus: true, openSidebar: true});
+            focusPerson(only, {focus: true, openSidebar: true});
             return;
         }
 
@@ -875,6 +875,13 @@
         }
     }
 
+    // Unified focus helper to select a person from any entry point (graph, sidebar, search)
+    function focusPerson(id, opts = {}) {
+        if (id == null) return;
+        const normId = String(id);
+        setSelected(normId, opts);
+    }
+
     function clearSelection(resetSearch = true) {
         if (!nodesDS) return;
         selectedId = null;
@@ -931,7 +938,7 @@
                 // Per requirement: do not show IDs in mutuals when a name exists; otherwise fall back to ID
                 const display = nm && nm !== mid ? nm : mid;
                 const {image, brokenImage} = ensureAvatarUrl(mid, display);
-                return `<li><img class="avatar" src="${image}" onerror="this.onerror=null;this.src='${brokenImage}'" alt=""/> <span>${escapeHtml(display)}</span></li>`;
+                return `<li class="mutual-item" data-id="${mid}" tabindex="0" role="button"><img class=\"avatar\" src=\"${image}\" onerror=\"this.onerror=null;this.src='${brokenImage}'\" alt=\"\"/> <span>${escapeHtml(display)}</span></li>`;
             }).join('');
 
             // Determine a friendly source label: if the source base name looks like an ID and
@@ -956,6 +963,26 @@
             : '<div class="source-empty">No mutuals for this user in the loaded sources.</div>';
         showSidebar();
     }
+
+    // Sidebar interactivity: clicking a mutual focuses that node
+    sidebarContent.addEventListener('click', (e) => {
+        const li = e.target.closest('li.mutual-item[data-id]');
+        if (!li) return;
+        const targetId = li.getAttribute('data-id');
+        if (!targetId) return;
+        focusPerson(targetId, {focus: true, openSidebar: true});
+    });
+
+    // Keyboard accessibility for mutual items (Enter/Space)
+    sidebarContent.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        const li = e.target.closest('li.mutual-item[data-id]');
+        if (!li) return;
+        e.preventDefault();
+        const targetId = li.getAttribute('data-id');
+        if (!targetId) return;
+        focusPerson(targetId, {focus: true, openSidebar: true});
+    });
 
     // Events
     fileInput.addEventListener('change', (e) => {

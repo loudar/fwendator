@@ -204,6 +204,25 @@ main {
     font-size: 13px;
 }
 
+/* Clickable rows in sidebar */
+.mutual-item {
+    cursor: pointer;
+    user-select: none;
+    border-radius: 6px;
+    padding: 4px 6px;
+    margin-left: -6px; /* compensate for padding to align with list */
+    margin-right: -6px;
+}
+
+.mutual-item:hover {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.mutual-item:focus {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+}
+
 /* Loading overlay */
 #loadingOverlay[hidden] {
     display: none;
