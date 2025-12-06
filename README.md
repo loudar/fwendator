@@ -47,8 +47,6 @@ __To clarify; Yes, this piece of code will use your discord token; Yes it is con
 7) open the file src/index.html in your preferred browser
 8) upload your json file and enjoy! you can even upload multiple json files to merge your graph with those of your friends :D
 
-> Note, the graph takes a long time to load, the more friends you have the longer it will take (up to 10+ minutes)
-
 ---
 
 # Feel free to contribute to this project, or share it, anything would be appreciated <3
