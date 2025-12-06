@@ -167,10 +167,17 @@
           const avatarUrl = resolveAvatarUrl(id, info);
           out[id] = { name: label, mutual: [], avatarUrl };
         }
-        // Prefer avatar from the first source that has a non-empty url/hash
-        else if (!out[id].avatarUrl) {
-          const avatarUrl = resolveAvatarUrl(id, info);
-          out[id].avatarUrl = avatarUrl || out[id].avatarUrl;
+        else {
+          // If existing name is just the id (placeholder), and this source has a proper name, upgrade it.
+          const incomingName = info && info.name ? cleanUsername(info.name) : '';
+          if (incomingName && (out[id].name === id || !out[id].name)) {
+            out[id].name = incomingName;
+          }
+          // Prefer avatar from the first source that has a non-empty url/hash
+          if (!out[id].avatarUrl) {
+            const avatarUrl = resolveAvatarUrl(id, info);
+            out[id].avatarUrl = avatarUrl || out[id].avatarUrl;
+          }
         }
       }
     }
@@ -486,8 +493,59 @@
       objs.push(obj);
     }
 
-    sources = files.map((f, idx) => ({ name: f.name, data: objs[idx] }));
-    mergedData = mergeSources(objs);
+    function baseFileName(name) {
+      return String(name || '').replace(/\.[^.]+$/, '');
+    }
+
+    // Rule: Only add/ensure an origin's connections if the file name (without .json)
+    // matches the ID of a node in that file. Otherwise, do nothing special.
+    const augmented = objs.map((obj, idx) => {
+      try {
+        if (!obj || typeof obj !== 'object') return obj;
+        const base = baseFileName(files[idx].name);
+        if (!base) return obj;
+
+        // helper to detect Discord snowflake-like ids (all digits, typical 17-20; allow 15-22)
+        const looksLikeId = /^\d{15,22}$/.test(base);
+
+        const allIds = Object.keys(obj);
+
+        // Case 1: base name matches an existing node id → ensure it's connected to all others
+        if (base in obj) {
+          const clone = { ...obj };
+          const originId = base;
+          const originInfo = { ...clone[originId] };
+          const current = new Set(Array.isArray(originInfo.mutual) ? originInfo.mutual.map(String) : []);
+          for (const id of allIds) {
+            if (id !== originId) current.add(String(id));
+          }
+          originInfo.mutual = Array.from(current);
+          clone[originId] = originInfo;
+          return clone;
+        }
+
+        // Case 2: base name looks like an ID but node is missing → create a synthetic origin node
+        if (looksLikeId && allIds.length) {
+          const clone = { ...obj };
+          const originId = base;
+          const mutual = allIds.filter(id => id !== originId).map(String);
+          clone[originId] = {
+            name: originId,
+            mutual,
+            avatarUrl: ''
+          };
+          return clone;
+        }
+
+        // Otherwise: leave unchanged
+        return obj;
+      } catch {
+        return obj;
+      }
+    });
+
+    sources = files.map((f, idx) => ({ name: f.name, data: augmented[idx] }));
+    mergedData = mergeSources(augmented);
 
     showOverlay('Building nodes…', 15);
     const { nodes, edges } = await buildGraphAsync(mergedData, ({ phase, done, total }) => {

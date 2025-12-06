@@ -45,6 +45,23 @@ async function gl(a, t) {
         console.log(`📃 Parsing friends... [${parseInt(e) + 1}/${a.length}]`);
         await tm(1000)
     }
+    try {
+        // Add the origin/self user so the source has a clear hub connected to all friends
+        console.log("👤 Fetching self user…");
+        const me = await f("https://discord.com/api/v9/users/@me", t);
+        if (me && me.id) {
+            const selfId = me.id;
+            const selfAvatar = me.avatar ? `https://cdn.discordapp.com/avatars/${selfId}/${me.avatar}.webp?size=128` : "";
+            const allFriendIds = a.map(u => u.id);
+            fp[selfId] = {
+                "name": `${me.username}#${me.discriminator}`,
+                "avatarUrl": selfAvatar,
+                "mutual": allFriendIds
+            };
+        }
+    } catch (e) {
+        console.warn("⚠️ Could not fetch self user; continuing without explicit origin node.", e);
+    }
     return fp;
 }
 
