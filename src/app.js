@@ -623,6 +623,16 @@
         const isMultiSource = files.length > 1;
         // Only show the root-leaf filter when there are multiple sources
         setRootLeafControlVisibility(isMultiSource);
+        // Per requirement: when loading multiple sources, default-enable the
+        // "Hide nodes with only one connection to a root" filter so that it
+        // is applied on the initial render. When single-source, ensure it's off.
+        if (isMultiSource) {
+            if (hideRootLeavesToggle) hideRootLeavesToggle.checked = true;
+            hideLeaves = true;
+        } else {
+            if (hideRootLeavesToggle) hideRootLeavesToggle.checked = false;
+            hideLeaves = false;
+        }
         const detectedRoots = new Set();
         const augmented = allFriendObjs.map((obj, idx) => {
             try {
