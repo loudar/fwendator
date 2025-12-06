@@ -44,20 +44,10 @@ __To clarify; Yes, this piece of code will use your discord token; Yes it is con
 <img src="https://github.com/Escartem/fwendator/blob/master/images/result.png?raw=true" />
 
 6) now you need to clone this repo (with `git clone https://github.com/Escartem/fwendator` for example) and make sure you have both python and pyvis version 0.3.1 installed (with `pip install pyvis==0.3.1`)
-7) run the python file with `python graph.py`, it will ask you to choose a .json file, select the one you downloaded earlier, and then the script should finish and generate a webpage in the `output` folder
-
-> The script may try to automatically open the graph for you, but may do so using the wrong browser, if that happens just close the window
-
-8) and now you just need to open `nx.html` in that folder and you can explore your friends graph :D
+7) open the file src/index.html in your preferred browser
+8) upload your json file and enjoy! you can even upload multiple json files to merge your graph with those of your friends :D
 
 > Note, the graph takes a long time to load, the more friends you have the longer it will take (up to 10+ minutes)
-
----
-# Todo :
-- [ ] make a website where people can just upload the json file and see the graph
-- [ ] optimise web ui
-- [ ] add friends pfp on the graph
-- [ ] handle new upcomming discord username system
 
 ---
 

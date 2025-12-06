@@ -1,0 +1,13 @@
+{
+  "name": "fwendator",
+  "private": true,
+  "scripts": {
+    "minify": "bun build ./getFriends.js --minify --outfile=getFriends.min.js"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}
