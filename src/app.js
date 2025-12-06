@@ -4,6 +4,7 @@
 (function () {
     const fileInput = document.getElementById('fileInput');
     const avatarToggle = document.getElementById('avatarToggle');
+    const hideNamesToggle = document.getElementById('hideNamesToggle');
     const hideRootLeavesToggle = document.getElementById('hideRootLeaves');
     const searchInput = document.getElementById('searchInput');
     const clearSearchBtn = document.getElementById('clearSearchBtn');
@@ -37,6 +38,8 @@
     let selectedId = null;
     /** Avatar mode flag */
     let useAvatars = false;
+    /** Hide usernames flag */
+    let hideNames = false;
     /** Cache of generated avatar data URLs by node id */
     const avatarUrlById = new Map();
     /** Roots detected from sources (origin IDs created/ensured per source) */
@@ -83,6 +86,7 @@
         mergedData = null;
         selectedId = null;
         useAvatars = avatarToggle?.checked || false;
+        hideNames = hideNamesToggle?.checked || false;
         hideLeaves = hideRootLeavesToggle?.checked || false;
         avatarUrlById.clear();
         if (stabilizeTimeoutId !== null) {
@@ -429,6 +433,9 @@
         // If avatars toggle is on, apply avatar mode now
         applyAvatarMode(useAvatars);
 
+        // Apply hide usernames after network init if enabled
+        applyHideUsernames(hideNames);
+
         // Physics progress indicator
         let lastPct = 0;
         network.on('stabilizationProgress', function (params) {
@@ -475,6 +482,14 @@
                 clearSelection();
             }
         });
+    }
+
+    function applyHideUsernames(enabled) {
+        if (!network) return;
+        // Toggle the global node font size to hide/show labels without touching data
+        const size = enabled ? 0 : 12;
+        network.setOptions({nodes: {font: {size}}});
+        hideNames = !!enabled;
     }
 
     function initialsFromLabel(label) {
@@ -879,6 +894,10 @@
 
     avatarToggle.addEventListener('change', (e) => {
         applyAvatarMode(e.target.checked);
+    });
+
+    hideNamesToggle.addEventListener('change', (e) => {
+        applyHideUsernames(e.target.checked);
     });
 
     hideRootLeavesToggle.addEventListener('change', async (e) => {

@@ -40,6 +40,20 @@ body {
     align-items: center;
 }
 
+/* Right area: toggles aligned on the right, before the counts */
+.right-side {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-left: auto; /* ensure it stays to the far right when space-between is not enough */
+}
+
+.right-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
 button, .button {
     background: var(--btn);
     color: var(--text);
