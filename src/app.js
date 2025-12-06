@@ -891,19 +891,34 @@
                 mutuals = info.mutual.filter(m => mergedData[m]);
             }
             const count = mutuals.length;
+            // Skip sources with 0 mutuals entirely (do not render a block)
+            if (count === 0) continue;
             const items = mutuals.slice(0, 200).map(mid => {
-                const nm = mergedData[mid]?.name || mid;
-                return `<li>${nm}</li>`;
+                const nm = mergedData[mid]?.name;
+                // Per requirement: do not show IDs in mutuals when a name exists; otherwise fall back to ID
+                return `<li>${nm && nm !== mid ? nm : mid}</li>`;
             }).join('');
+
+            // Determine a friendly source label: if the source base name looks like an ID and
+            // we have a mapped name for it in mergedData, show that name; otherwise show the base name
+            const base = baseFileName(src.name);
+            let sourceLabel = base;
+            const looksLikeId = /^\d{15,22}$/.test(base);
+            if (looksLikeId && mergedData[base] && mergedData[base].name && mergedData[base].name !== base) {
+                sourceLabel = mergedData[base].name;
+            }
             blocks.push(`
         <div class="source-block">
-          <div class="source-title">${src.name} — ${count} mutual${count === 1 ? '' : 's'}</div>
-          ${count ? `<ul class="mutuals-list">${items}</ul>` : '<div class="source-empty">No data for this user in this source.</div>'}
+          <div class="source-title">${sourceLabel} — ${count} mutual${count === 1 ? '' : 's'}</div>
+          <ul class="mutuals-list">${items}</ul>
         </div>
       `);
         }
 
-        sidebarContent.innerHTML = blocks.join('');
+        // If no sources had mutuals to show, render a friendly empty state
+        sidebarContent.innerHTML = blocks.length
+            ? blocks.join('')
+            : '<div class="source-empty">No mutuals for this user in the loaded sources.</div>';
         showSidebar();
     }
 
