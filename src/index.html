@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Friends Graph Renderer (Vanilla JS)</title>
+    <link rel="stylesheet" href="../output/lib/vis-9.1.2/vis-network.css">
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <header class="toolbar">
+      <div class="controls">
+        <label class="file-upload">
+          <input id="fileInput" type="file" accept="application/json" />
+          <span class="btn">Upload JSON</span>
+        </label>
+        <input id="searchInput" type="text" placeholder="Search username (e.g. alice)" disabled>
+        <button id="clearSearchBtn" class="btn" disabled>Clear</button>
+      </div>
+      <div class="stats" id="stats">No data loaded</div>
+    </header>
+
+    <main>
+      <div id="network"></div>
+      <!-- Loading / progress overlay -->
+      <div id="loadingOverlay" hidden>
+        <div class="loader-card">
+          <div class="loader-title">Working…</div>
+          <div id="loaderMessage" class="loader-message">Preparing…</div>
+          <div class="progress">
+            <div id="loaderBar" class="progress-bar" style="width:0%"></div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <footer class="help">
+      <p>
+        Load a JSON produced by getFriends.js: an object keyed by user id → { name, mutual }. The renderer will
+        draw nodes for each user and undirected edges for mutual connections. Use the search box to highlight a user
+        and their neighbors.
+      </p>
+    </footer>
+
+    <script src="../output/lib/vis-9.1.2/vis-network.min.js"></script>
+    <script src="app.js"></script>
+  </body>
+  </html>

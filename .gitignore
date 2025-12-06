@@ -1,2 +1,4 @@
 output
 old
+.idea
+*.json
