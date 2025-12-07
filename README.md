@@ -57,7 +57,7 @@ Head to [Displaying data](#displaying-data) to continue
 
 ## Displaying data
 
-1) now you need to clone this repo (with `git clone https://github.com/Escartem/fwendator` for example)
+1) now you need to clone this repo (with `git clone https://github.com/loudar/fwendator` for example)
 2) open the file src/index.html in your preferred browser
 3) upload your json file and enjoy! you can even upload multiple json files to merge your graph with those of your friends :D
 
