@@ -15,9 +15,9 @@
 <img src="https://github.com/Escartem/fwendator/blob/master/images/graph_individual.gif?raw=true" />
 
 ---
-## Additionnal explanation about the graph
+## Additional explanation about the graph
 
-* Each dot represent a friend you have on discord, and each line is when two of your friends are also friends together, so this show all of your friends and who they are friends with that is also your friend
+* Each dot represent a friend you have and each line is when two of your friends are also friends together, so this show all of your friends and who they are friends with that is also your friend
 * The most mutual friends you have with someone, the bigger the circle. And the color is also linked to the circle size
 * You can also have circles alone, those are people that are friends with you, and none of all your others friends are friend with him
 * Since there are only your friends, you are not inside the graph, furthermore this would have been a nightmare to display if you were in it since every single circle would be connected to you
@@ -25,15 +25,17 @@
 ---
 # How to use
 
+## Discord
+
 1) open [discord](https://discord.com/app) on your browser
 2) open the devtools with `F12` or `ctrl + shift + i`
-3) go to the console tab and paste this [code](https://raw.githubusercontent.com/Escartem/fwendator/master/getFriends.min.js)
+3) go to the console tab and paste this [code](https://raw.githubusercontent.com/loudar/fwendator/master/serviceScripts/discord.min.js)
 
 I know that discord will show many warnings about not pasting random code into the console, and they are right, never paste code that you don't understand in random places. 
 
 __To clarify; Yes, this piece of code will use your discord token; Yes it is considered as self-botting and against discord ToS; No, your token won't be shared and only be used to get all of your friends on your account; No, you won't be systematically banned for using this but you do expose yourself anyway, use at your own risk.__
 
-> You can check this code by looking at the [original file](https://github.com/Escartem/fwendator/blob/master/getFriends.js), and if you still don't trust it, just don't paste it
+> You can check this code by looking at the [original file](https://github.com/loudar/fwendator/blob/master/serviceScripts/discord.js), and if you still don't trust it, just don't paste it
 
 4) after pasting it and running it, it should start processing your friends, now you just need to wait
 
@@ -43,9 +45,21 @@ __To clarify; Yes, this piece of code will use your discord token; Yes it is con
 
 <img src="https://github.com/Escartem/fwendator/blob/master/images/result.png?raw=true" />
 
-6) now you need to clone this repo (with `git clone https://github.com/Escartem/fwendator` for example)
-7) open the file src/index.html in your preferred browser
-8) upload your json file and enjoy! you can even upload multiple json files to merge your graph with those of your friends :D
+Head to [Displaying data](#displaying-data) to continue
+
+## Steam
+
+1) open [steam](https://steamcommunity.com/me/friends) on your browser
+2) open the devtools with `F12` or `ctrl + shift + i`
+3) go to the console tab and paste this [code](https://raw.githubusercontent.com/loudar/fwendator/master/serviceScripts/steam.min.js)
+
+Head to [Displaying data](#displaying-data) to continue
+
+## Displaying data
+
+1) now you need to clone this repo (with `git clone https://github.com/Escartem/fwendator` for example)
+2) open the file src/index.html in your preferred browser
+3) upload your json file and enjoy! you can even upload multiple json files to merge your graph with those of your friends :D
 
 ---
 

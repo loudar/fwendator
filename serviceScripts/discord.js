@@ -67,7 +67,7 @@ async function fetchJson(url, token) {
 }
 
 // Get all user friends (relationships) and return the embedded user objects
-async function getFriends(token) {
+async function discord(token) {
     console.log("✉️ Fetching friends...");
     const relationships = await fetchJson("https://discord.com/api/v9/users/@me/relationships", token);
     return Object.values(relationships).map(r => r.user);
@@ -99,7 +99,8 @@ async function buildFriendGraph(friends, token) {
         out[uid] = {
             name: `${friend.username}#${friend.discriminator}`,
             avatarUrl,
-            mutual: Object.values(rel).map(e => e.id)
+            mutual: Object.values(rel).map(e => e.id),
+            source: "discord",
         };
 
         console.log(`📃 Parsing friends... [${index}/${friends.length}]`);
@@ -161,7 +162,7 @@ async function main() {
         }
 
         const token = await getToken();
-        const friends = await getFriends(token);
+        const friends = await discord(token);
         const {data, id} = await buildFriendGraph(friends, token);
         renderResult(data, id);
         console.log("✨ Done");
