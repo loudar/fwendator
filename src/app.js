@@ -526,11 +526,15 @@
         const s = String(label || '').trim();
         if (!s) return '?';
         // Split by non-alphanumeric or camelcase boundaries
-        const parts = s
+        const base = s
             .replace(/[_\-]+/g, ' ')
             .replace(/([a-z])([A-Z])/g, '$1 $2')
-            .split(/\s+/)
-            .filter(Boolean);
+            .replace(/\W+/g, '')
+        if (base.length === 0) {
+            return '?';
+        }
+
+        const parts = base.split(/\s+/).filter(Boolean);
         let letters = '';
         for (let i = 0; i < parts.length && letters.length < 2; i++) {
             letters += parts[i][0] || '';
@@ -552,7 +556,11 @@
   </g>
   <text x="50%" y="54%" text-anchor="middle" dominant-baseline="middle" font-family="Inter,Segoe UI,system-ui,Arial" font-weight="700" font-size="56" fill="#ffffff">${text}</text>
 </svg>`;
-        return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+        try {
+            return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+        } catch (e) {
+            throw new Error(`Invalid url: ${label} -> ${text}`);
+        }
     }
 
     function ensureAvatarUrl(id, label) {
