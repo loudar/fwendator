@@ -2,7 +2,8 @@
   "name": "fwendator",
   "private": true,
   "scripts": {
-    "minify": "bun build serviceScripts/discord.js --minify --outfile=getFriends.min.js"
+    "minify-discord": "bun build serviceScripts/discord.js --minify --outfile=serviceScripts/discord.min.js",
+    "minify-steam": "bun build serviceScripts/steam.js --minify --outfile=serviceScripts/steam.min.js"
   },
   "devDependencies": {
     "@types/bun": "latest"
