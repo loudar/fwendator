@@ -49,7 +49,7 @@ Head to [Displaying data](#displaying-data) to continue
 
 ## Steam
 
-1) open [steam](https://steamcommunity.com/me/friends) on your browser
+1) open [steam](https://steamcommunity.com/friends) on your browser
 2) open the devtools with `F12` or `ctrl + shift + i`
 3) go to the console tab and paste this [code](https://raw.githubusercontent.com/loudar/fwendator/master/serviceScripts/steam.min.js)
 
